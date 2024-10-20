@@ -27,8 +27,6 @@ namespace SimpleMissileMod
             while (craft == null)
             {
                 craft = UnityEngine.Object.FindObjectOfType<Il2Cpp.Craft>();
-
-                // Log if still waiting
                 if (craft == null)
                     // Yield until next frame to check again
                     yield return null;
@@ -38,8 +36,16 @@ namespace SimpleMissileMod
             MelonLogger.Msg("Craft found! Executing logic...");
             ProcessMissilesInScene();
         }
-        private void ProcessMissilesInScene()
+        static void ProcessMissilesInScene()
         {
+            // Verify that a craft exists:
+            Il2Cpp.Craft craft = UnityEngine.Object.FindObjectOfType<Il2Cpp.Craft>();
+            if (craft == null)
+            {
+                MelonLogger.Error($"Craft not found in scene!");
+                return;
+            }
+
             // Find all Missile objects in the scene
             var missiles = UnityEngine.Object.FindObjectsOfType<Il2Cpp.Missile>();
 
@@ -58,6 +64,11 @@ namespace SimpleMissileMod
 
                 // Split the missile name to check prefix and get the specific missile identifier
                 var parts = missileName.Split('.');
+                if (parts.Length < 2)
+                {
+                    MelonLogger.Error($"Missile name '{missileName}' is not in the expected format. Skipping missile.");
+                    continue;
+                }
 
                 // Construct the configuration file path
                 string cfgFile = parts[1] + ".cfg";
@@ -81,6 +92,12 @@ namespace SimpleMissileMod
                         // Ignore empty lines and comments
                         if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#"))
                             continue;
+
+                        if (line.TrimStart().StartsWith("[") && line.TrimEnd().EndsWith("]"))
+                        {
+                            MelonLogger.Msg($"Parsed section header: {line}");
+                            continue;
+                        }
 
                         var keyValue = line.Split(new char[] { '=' }, 2);
                         if (keyValue.Length != 2)
@@ -153,26 +170,26 @@ namespace SimpleMissileMod
                 }
             }
         }
-        private void ApplyConfigToMissile(Il2Cpp.Missile missile, MissileConfig config)
+        static void ApplyConfigToMissile(Il2Cpp.Missile missile, MissileConfig config)
         {
-            // Apply missile parameters
-            missile.burnTime = config.BurnTime;
-            missile.turnRate = config.TurnRate;
-            missile.thrust = config.Thrust;
-            missile.guidanceTime = config.GuidanceTime;
-            missile.fuel = config.Fuel;
-            missile.explosionScale = config.ExplosionScale;
-            missile.radius = config.ExplosionRadius;
-            missile.dragCoeffs = config.DragCoeffs;
+            // Apply missile parameters if they have values
+            if (config.BurnTime.HasValue) missile.burnTime = config.BurnTime.Value;
+            if (config.TurnRate.HasValue) missile.turnRate = config.TurnRate.Value;
+            if (config.Thrust.HasValue) missile.thrust = config.Thrust.Value;
+            if (config.GuidanceTime.HasValue) missile.guidanceTime = config.GuidanceTime.Value;
+            if (config.Fuel.HasValue) missile.fuel = config.Fuel.Value;
+            if (config.ExplosionScale.HasValue) missile.explosionScale = config.ExplosionScale.Value;
+            if (config.ExplosionRadius.HasValue) missile.radius = config.ExplosionRadius.Value;
+            if (config.DragCoeffs.HasValue) missile.dragCoeffs = config.DragCoeffs.Value;
 
-            // Apply seeker parameters if the seeker exists
+            // Apply seeker parameters if the seeker exists and if they have values
             var part = missile.gameObject;
             var seeker = part.GetComponent<Il2Cpp.IRSeeker>();
             if (seeker != null)
             {
-                seeker.gimbalRange = config.GimbalRange;
-                seeker.lockThreshold = config.LockThreshold;
-                seeker.signalStrength = config.SignalStrength;
+                if (config.GimbalRange.HasValue) seeker.gimbalRange = config.GimbalRange.Value;
+                if (config.LockThreshold.HasValue) seeker.lockThreshold = config.LockThreshold.Value;
+                if (config.SignalStrength.HasValue) seeker.signalStrength = config.SignalStrength.Value;
             }
             else
             {
@@ -182,19 +199,19 @@ namespace SimpleMissileMod
         private class MissileConfig
         {
             // Missile parameters
-            public float BurnTime { get; set; } = 0f;
-            public float TurnRate { get; set; } = 0f;
-            public float Thrust { get; set; } = 0f;
-            public float GuidanceTime { get; set; } = 0f;
-            public float Fuel { get; set; } = 0f;
-            public float ExplosionScale { get; set; } = 0f;
-            public float ExplosionRadius { get; set; } = 0f;
-            public Vector3 DragCoeffs { get; set; } = Vector3.zero;
+            public float? BurnTime { get; set; }
+            public float? TurnRate { get; set; }
+            public float? Thrust { get; set; }
+            public float? GuidanceTime { get; set; }
+            public float? Fuel { get; set; }
+            public float? ExplosionScale { get; set; }
+            public float? ExplosionRadius { get; set; }
+            public Vector3? DragCoeffs { get; set; }
 
             // Seeker parameters
-            public float GimbalRange { get; set; } = 0f;
-            public float LockThreshold { get; set; } = 0f;
-            public float SignalStrength { get; set; } = 0f;
+            public float? GimbalRange { get; set; }
+            public float? LockThreshold { get; set; }
+            public float? SignalStrength { get; set; }
         }
     }
 }
